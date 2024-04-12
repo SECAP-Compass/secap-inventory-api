@@ -27,7 +27,7 @@ class EventStoreDBConfiguration {
     }
 
     @Bean
-    fun eventStoreDBClient(): EventStoreDBClientBase {
+    fun eventStoreDBClient(): EventStoreDBClient {
         logger.info("Creating EventStoreDBClient")
         return EventStoreDBClient.create(eventStoreSettings())
     }

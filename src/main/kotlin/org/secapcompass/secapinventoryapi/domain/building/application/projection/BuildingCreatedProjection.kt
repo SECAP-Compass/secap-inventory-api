@@ -2,9 +2,12 @@ package org.secapcompass.secapinventoryapi.domain.building.application.projectio
 
 import com.eventstore.dbclient.CreatePersistentSubscriptionToAllOptions
 import com.eventstore.dbclient.EventStoreDBPersistentSubscriptionsClient
+import com.eventstore.dbclient.NackAction
 import com.eventstore.dbclient.PersistentSubscription
 import com.eventstore.dbclient.PersistentSubscriptionListener
 import com.eventstore.dbclient.ResolvedEvent
+import com.eventstore.dbclient.SubscribePersistentSubscriptionOptions
+import com.eventstore.dbclient.SubscribeToAllOptions
 import com.eventstore.dbclient.SubscriptionFilter
 import com.google.gson.Gson
 import kotlinx.serialization.json.Json
@@ -42,8 +45,10 @@ class BuildingCreatedProjection(
 
         val listener = BuildingCreatedListener()
 
+        val x = SubscribePersistentSubscriptionOptions.get()
+            .bufferSize(123123123)
         eventStoreDBPersistentSubscriptionsClient.subscribeToAll(
-            CONSUMER_GROUP, listener
+            CONSUMER_GROUP, x, listener
         )
 
         logger.info("Subscribed to all events with prefix: $EVENT_TYPE_PREFIX")
@@ -52,13 +57,18 @@ class BuildingCreatedProjection(
     inner class BuildingCreatedListener : PersistentSubscriptionListener() {
         override fun onEvent(subscription: PersistentSubscription, retryCount: Int, event: ResolvedEvent) {
             logger.info("Event received: ${event.event.eventType}. AggregateId: ${event.event.streamId}, EventId: ${event.event.eventId}")
-
-            val e = gsonMapper.fromJson(event.originalEvent.eventData.decodeToString(), BuildingCreatedEvent::class.java)
-            logger.info("Event data: $event")
+            var e: BuildingCreatedEvent? = null
+            try {
+                e = gsonMapper.fromJson(event.originalEvent.eventData.decodeToString(), BuildingCreatedEvent::class.java)
+            } catch (ex: Exception) {
+                logger.error("Error while deserializing event data", ex)
+                subscription.nack(NackAction.Park, "failed to deserialize event data")
+                return
+            }
 
             val building = Building(id = UUID.fromString(event.event.streamId), address = e.address, area = 0.0)
-
             buildingPsqlRepository.saveBuilding(building)
+            subscription.ack(event)
         }
 
         override fun onCancelled(subscription: PersistentSubscription?, exception: Throwable?) {
