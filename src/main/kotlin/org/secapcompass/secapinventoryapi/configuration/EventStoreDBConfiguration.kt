@@ -1,7 +1,6 @@
 package org.secapcompass.secapinventoryapi.configuration
 
 import com.eventstore.dbclient.EventStoreDBClient
-import com.eventstore.dbclient.EventStoreDBClientBase
 import com.eventstore.dbclient.EventStoreDBClientSettings
 import com.eventstore.dbclient.EventStoreDBConnectionString
 import com.eventstore.dbclient.EventStoreDBPersistentSubscriptionsClient
@@ -14,12 +13,10 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 class EventStoreDBConfiguration {
-
     @Value("\${eventstoredb.connectionString}")
     lateinit var connectionString: String
 
     val logger = LoggerFactory.getLogger(EventStoreDBConfiguration::class.java)
-
 
     fun eventStoreSettings(): EventStoreDBClientSettings {
         logger.info("EventStore connection string: $connectionString")

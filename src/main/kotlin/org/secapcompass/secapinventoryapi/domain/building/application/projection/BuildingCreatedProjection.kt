@@ -6,14 +6,12 @@ import com.eventstore.dbclient.NackAction
 import com.eventstore.dbclient.PersistentSubscription
 import com.eventstore.dbclient.PersistentSubscriptionListener
 import com.eventstore.dbclient.ResolvedEvent
-import com.eventstore.dbclient.SubscribePersistentSubscriptionOptions
-import com.eventstore.dbclient.SubscribeToAllOptions
 import com.eventstore.dbclient.SubscriptionFilter
 import com.google.gson.Gson
-import kotlinx.serialization.json.Json
+import org.secapcompass.secapinventoryapi.configuration.ApplicationConfiguration
 import org.secapcompass.secapinventoryapi.domain.building.core.event.BuildingCreatedEvent
 import org.secapcompass.secapinventoryapi.domain.building.core.model.Building
-import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingPsqlRepo
+import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -22,42 +20,45 @@ import java.util.*
 @Component
 class BuildingCreatedProjection(
     eventStoreDBPersistentSubscriptionsClient: EventStoreDBPersistentSubscriptionsClient,
-    private val buildingPsqlRepository: IBuildingPsqlRepo,
-    private val gsonMapper: Gson
-    ) {
-
+    private val buildingPsqlRepository: IBuildingRepository,
+    private val gsonMapper: Gson,
+    applicationConfiguration: ApplicationConfiguration
+) {
     private companion object {
-        const val CONSUMER_GROUP = "2building.created.consumer.group"
         const val EVENT_TYPE_PREFIX = "building.created"
     }
 
     private val logger: Logger = LoggerFactory.getLogger(BuildingCreatedProjection::class.java)
 
     init {
-        val filter = SubscriptionFilter.newBuilder().addEventTypePrefix(EVENT_TYPE_PREFIX).build()
-
-        val opts = CreatePersistentSubscriptionToAllOptions.get()
-            .fromStart()
-            .filter(filter)
-
-        eventStoreDBPersistentSubscriptionsClient
-            .createToAll(CONSUMER_GROUP, opts)
+//        val filter = SubscriptionFilter.newBuilder().addEventTypePrefix(EVENT_TYPE_PREFIX).build()
+//
+//        val opts =
+//            CreatePersistentSubscriptionToAllOptions.get()
+//                .fromStart()
+//                .filter(filter)
+//
+//        eventStoreDBPersistentSubscriptionsClient
+//            .createToAll(applicationConfiguration.BUILDING_CREATED_CONSUMER_GROUP, opts).join()
 
         val listener = BuildingCreatedListener()
 
-        val x = SubscribePersistentSubscriptionOptions.get()
-            .bufferSize(123123123)
         eventStoreDBPersistentSubscriptionsClient.subscribeToAll(
-            CONSUMER_GROUP, x, listener
+            applicationConfiguration.BUILDING_CREATED_CONSUMER_GROUP,
+            listener,
         )
 
         logger.info("Subscribed to all events with prefix: $EVENT_TYPE_PREFIX")
     }
 
     inner class BuildingCreatedListener : PersistentSubscriptionListener() {
-        override fun onEvent(subscription: PersistentSubscription, retryCount: Int, event: ResolvedEvent) {
+        override fun onEvent(
+            subscription: PersistentSubscription,
+            retryCount: Int,
+            event: ResolvedEvent,
+        ) {
             logger.info("Event received: ${event.event.eventType}. AggregateId: ${event.event.streamId}, EventId: ${event.event.eventId}")
-            var e: BuildingCreatedEvent? = null
+            val e: BuildingCreatedEvent
             try {
                 e = gsonMapper.fromJson(event.originalEvent.eventData.decodeToString(), BuildingCreatedEvent::class.java)
             } catch (ex: Exception) {
@@ -71,7 +72,10 @@ class BuildingCreatedProjection(
             subscription.ack(event)
         }
 
-        override fun onCancelled(subscription: PersistentSubscription?, exception: Throwable?) {
+        override fun onCancelled(
+            subscription: PersistentSubscription?,
+            exception: Throwable?,
+        ) {
             if (exception == null) {
                 logger.info("Subscription is cancelled")
                 return

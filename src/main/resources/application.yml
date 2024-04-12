@@ -13,4 +13,6 @@ spring:
 
 eventstoredb:
   connectionString: "esdb://localhost:2113?tls=false"
-
+  consumer-groups:
+    building-created-consumer-group: building.created.consumer.group
+    building-measured-consumer-group: building.measured.consumer.group
