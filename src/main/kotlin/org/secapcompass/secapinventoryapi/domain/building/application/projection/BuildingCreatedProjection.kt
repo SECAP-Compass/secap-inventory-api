@@ -10,6 +10,7 @@ import com.eventstore.dbclient.SubscriptionFilter
 import com.google.gson.Gson
 import org.secapcompass.secapinventoryapi.configuration.ApplicationConfiguration
 import org.secapcompass.secapinventoryapi.domain.building.core.event.BuildingCreatedEvent
+import org.secapcompass.secapinventoryapi.domain.building.core.event.toAddress
 import org.secapcompass.secapinventoryapi.domain.building.core.model.Building
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingRepository
 import org.slf4j.Logger
@@ -67,7 +68,7 @@ class BuildingCreatedProjection(
                 return
             }
 
-            val building = Building(id = UUID.fromString(event.event.streamId), address = e.address, area = 0.0)
+            val building = Building(id = UUID.fromString(event.event.streamId), address = e.address.toAddress(), area = 0.0)
             buildingPsqlRepository.saveBuilding(building)
             subscription.ack(event)
         }

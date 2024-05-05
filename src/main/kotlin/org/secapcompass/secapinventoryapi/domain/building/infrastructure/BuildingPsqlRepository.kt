@@ -2,6 +2,8 @@ package org.secapcompass.secapinventoryapi.domain.building.infrastructure
 
 import org.secapcompass.secapinventoryapi.domain.building.core.model.Building
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingRepository
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 import java.util.Optional
@@ -16,6 +18,10 @@ class BuildingPsqlRepository(private val buildingJpaRepository: BuildingJpaRepos
 
     override fun getBuildingById(id: UUID): Optional<Building> {
         return buildingJpaRepository.findById(id)
+    }
+
+    override fun getBuildings(pageable: Pageable): Page<Building> {
+        return buildingJpaRepository.findAll(pageable)
     }
 }
 

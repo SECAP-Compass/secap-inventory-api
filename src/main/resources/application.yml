@@ -16,3 +16,6 @@ eventstoredb:
   consumer-groups:
     building-created-consumer-group: building.created.consumer.group
     building-measured-consumer-group: building.measured.consumer.group
+
+server:
+  port: 8003
