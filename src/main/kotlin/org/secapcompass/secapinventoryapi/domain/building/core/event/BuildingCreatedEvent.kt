@@ -4,7 +4,16 @@ import org.secapcompass.secapinventoryapi.domain.building.core.vo.Address
 
 data class BuildingCreatedEvent(
     val address: AddressDTO,
+    val area: Area,
+    val type: String
 )
+
+data class Area(
+    val value: Double,
+    val unit: String
+) {
+    constructor(): this(0.0, "")
+}
 
 data class AddressDTO(
     val country: String,

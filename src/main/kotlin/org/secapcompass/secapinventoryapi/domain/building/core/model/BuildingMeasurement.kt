@@ -10,5 +10,6 @@ import java.util.UUID
 data class BuildingMeasurement(
     @Id val id: UUID,
     val buildingId: UUID,
-    @Embedded val measurement: Measurement
+    @Embedded val measurement: Measurement,
+    val createdBy: String,
 )
