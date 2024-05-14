@@ -9,7 +9,7 @@ spring:
   jpa:
     database: postgresql
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
 
 eventstoredb:
   connectionString: "esdb://localhost:2113?tls=false"

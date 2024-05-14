@@ -2,7 +2,6 @@ package org.secapcompass.secapinventoryapi.domain.building.application.projectio
 
 import com.eventstore.dbclient.CreatePersistentSubscriptionToAllOptions
 import com.eventstore.dbclient.EventStoreDBPersistentSubscriptionsClient
-import com.eventstore.dbclient.EventStoreDBProjectionManagementClient
 import com.eventstore.dbclient.NackAction
 import com.eventstore.dbclient.PersistentSubscription
 import com.eventstore.dbclient.PersistentSubscriptionListener
@@ -14,7 +13,6 @@ import org.secapcompass.secapinventoryapi.domain.building.core.event.BuildingMea
 import org.secapcompass.secapinventoryapi.domain.building.core.model.BuildingMeasurement
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingMeasurementRepository
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingRepository
-import org.secapcompass.secapinventoryapi.domain.building.core.vo.Measurement
 import org.secapcompass.secapinventoryapi.shared.eventsourcing.EventMetadata
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -46,7 +44,10 @@ class BuildingMeasuredProjection(
                 .createToAll(applicationConfiguration.BUILDING_CREATED_CONSUMER_GROUP, opts).join()
         }
         catch (e: Exception) {
-            logger.error("Error while creating subscription", e)
+            if (!e.message!!.contains("ALREADY_EXISTS")) {
+                logger.error("Error creating subscription: ${e.message}")
+                throw e
+            }
         }
 
         val listener = BuildingMeasuredListener()

@@ -45,7 +45,10 @@ class BuildingCreatedProjection(
             eventStoreDBPersistentSubscriptionsClient
                 .createToAll(applicationConfiguration.BUILDING_CREATED_CONSUMER_GROUP, opts).join()
         } catch (e: Exception) {
-            logger.error("Error while creating subscription", e)
+            if (!e.message!!.contains("ALREADY_EXISTS")) {
+                logger.error("Error creating subscription: ${e.message}")
+                throw e
+            }
         }
 
         val listener = BuildingCreatedListener()
