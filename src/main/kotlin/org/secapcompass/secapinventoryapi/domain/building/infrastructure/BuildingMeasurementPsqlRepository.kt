@@ -16,12 +16,12 @@ class BuildingMeasurementPsqlRepository(private val buildingMeasurementJpaReposi
     }
 
     override fun getBuildingMeasurementById(id: UUID, pageable: Pageable): Page<BuildingMeasurement> {
-        return buildingMeasurementJpaRepository.findAllById(id, pageable)
+        return buildingMeasurementJpaRepository.findAllByBuildingId(id, pageable)
     }
 }
 
 @Repository
 interface BuildingMeasurementJpaRepository : JpaRepository<BuildingMeasurement, UUID> {
 
-    fun findAllById(id: UUID, pageable: Pageable): Page<BuildingMeasurement>
+    fun findAllByBuildingId(buildingId: UUID, pageable: Pageable): Page<BuildingMeasurement>
 }

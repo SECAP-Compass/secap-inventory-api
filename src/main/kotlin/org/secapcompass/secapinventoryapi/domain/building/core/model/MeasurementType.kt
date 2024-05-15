@@ -1,25 +1,32 @@
 package org.secapcompass.secapinventoryapi.domain.building.core.model
 
-enum class MeasurementType {
-    Electricity,
+enum class MeasurementType(s: String) {
+    Electricity("Electricity"),
 
-    DistrictHeating,
-    DistrictCooling,
+    DistrictHeating("District Heating"),
+    DistrictCooling("District Cooling"),
 
-    NaturalGas,
-    LiquidGas,
-    HeatingOil,
-    Diesel,
-    Gasoline,
-    Lignite,
-    Coal,
-    OtherFossilFuels,
+    NaturalGas("Natural Gas"),
+    LiquidGas("Liquid Gas"),
+    HeatingOil("Heating Oil"),
+    Diesel("Diesel"),
+    Gasoline("Gasoline"),
+    Lignite("Lignite"),
+    Coal("Coal"),
+    OtherFossilFuels("Other Fossil Fuels"),
 
-    Biogas,
-    PlantOil,
-    Biofuel,
-    OtherBiomass,
+    Biogas("Biogas"),
+    PlantOil("Plant Oil"),
+    Biofuel("Biofuel"),
+    OtherBiomass("Other Biomass"),
 
-    SolarThermal,
-    Geothermal,
+    SolarThermal("Solar Thermal"),
+    Geothermal("Geothermal"),
+}
+
+enum class MeasurementTypeHeader(s: String) {
+    Electricity("Electricity"),
+    DistrictHeatingAndCooling("District heating and cooling"),
+    FossilFuels("Fossil fuels"),
+    RenewableEnergies("Renewable energies")
 }

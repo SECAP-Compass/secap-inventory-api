@@ -31,7 +31,7 @@ class BuildingMeasuredProjection(
     private val logger = LoggerFactory.getLogger(BuildingMeasuredProjection::class.java)
 
     init {
-        val EVENT_TYPE_PREFIX = "building.measured.Electricity"
+        val EVENT_TYPE_PREFIX = "building.measured"
         val filter = SubscriptionFilter.newBuilder().addEventTypePrefix(EVENT_TYPE_PREFIX).build()
 
         val opts =
@@ -41,7 +41,7 @@ class BuildingMeasuredProjection(
 
         try {
             eventStoreDBPersistentSubscriptionsClient
-                .createToAll(applicationConfiguration.BUILDING_CREATED_CONSUMER_GROUP, opts).join()
+                .createToAll(applicationConfiguration.BUILDING_MEASURED_CONSUMER_GROUP, opts).join()
         }
         catch (e: Exception) {
             if (!e.message!!.contains("ALREADY_EXISTS")) {
@@ -53,7 +53,7 @@ class BuildingMeasuredProjection(
         val listener = BuildingMeasuredListener()
 
         eventStoreDBPersistentSubscriptionsClient.subscribeToAll(
-            applicationConfiguration.BUILDING_CREATED_CONSUMER_GROUP+"x1",
+            applicationConfiguration.BUILDING_MEASURED_CONSUMER_GROUP,
             listener,
         )
 
