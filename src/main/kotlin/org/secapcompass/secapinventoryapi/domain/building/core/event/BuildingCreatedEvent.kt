@@ -1,11 +1,14 @@
 package org.secapcompass.secapinventoryapi.domain.building.core.event
 
 import org.secapcompass.secapinventoryapi.domain.building.core.vo.Address
+import java.time.Month
+import java.time.Year
 
 data class BuildingCreatedEvent(
     val address: AddressDTO,
     val area: Area,
-    val type: String
+    val type: String,
+    val buildingCreateDate: BuildingCreateDate
 )
 
 data class Area(
@@ -25,6 +28,11 @@ data class AddressDTO(
 data class AddressPair(
     val id: Int,
     val value: String
+)
+
+data class BuildingCreateDate(
+    val createYear: Year,
+    val createMonth: Month
 )
 
 fun AddressDTO.toAddress(): Address {

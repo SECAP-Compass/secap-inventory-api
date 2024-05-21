@@ -5,3 +5,12 @@ enum class BuildingType {
     Commercial,
     Industrial
 }
+
+enum class NotVeryImportantSubBuildingTypes{
+    MunicipalBuilding,
+    PublicLighting,
+    InstitutionalBuilding,
+    NonETS,
+    ETS,
+    Other
+}
