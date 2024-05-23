@@ -1,5 +1,6 @@
 package org.secapcompass.secapinventoryapi.shared.domain
 
+import jakarta.persistence.Embeddable
 import kotlinx.serialization.Serializable
 
 @Serializable
