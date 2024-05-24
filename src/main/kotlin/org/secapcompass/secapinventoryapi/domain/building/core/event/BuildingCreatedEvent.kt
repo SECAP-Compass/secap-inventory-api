@@ -1,5 +1,6 @@
 package org.secapcompass.secapinventoryapi.domain.building.core.event
 
+import kotlinx.serialization.Serializable
 import org.secapcompass.secapinventoryapi.domain.building.core.vo.Address
 import java.time.Month
 import java.time.Year

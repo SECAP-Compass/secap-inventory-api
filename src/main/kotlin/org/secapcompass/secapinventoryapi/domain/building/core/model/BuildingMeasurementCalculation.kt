@@ -6,7 +6,7 @@ import jakarta.persistence.Id
 import org.secapcompass.secapinventoryapi.domain.building.core.vo.MeasurementCalculation
 import java.util.*
 
-@Entity
+
 data class BuildingMeasurementCalculation(
     @Id val id: UUID,
     val buildingId: UUID,

@@ -1,9 +1,9 @@
 spring:
   application.name: secap-inventory-api
   datasource:
-    url: jdbc:postgresql://localhost:5432/postgres
-    username: admin
-    password: admin
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/postgres}
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD:admin}
     hikari:
       driver-class-name: org.postgresql.Driver
   jpa:
@@ -12,10 +12,10 @@ spring:
       ddl-auto: update
 
 eventstoredb:
-  connectionString: "esdb://localhost:2113?tls=false"
+  connectionString: ${ESDB_CONN:esdb://10.244.0.205:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000}
   consumer-groups:
-    building-created-consumer-group: building.created.consumer.group
-    building-measured-consumer-group: building.measured.consumer.group
+    building-created-consumer-group: building.created.consumer.group.1
+    building-measured-consumer-group: building.measured.consumer.group.1
 
 server:
-  port: 8003
+  port: 8002

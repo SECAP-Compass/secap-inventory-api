@@ -8,6 +8,7 @@ import com.eventstore.dbclient.PersistentSubscriptionListener
 import com.eventstore.dbclient.ResolvedEvent
 import com.eventstore.dbclient.SubscriptionFilter
 import com.google.gson.Gson
+import kotlinx.serialization.json.Json
 import org.secapcompass.secapinventoryapi.configuration.ApplicationConfiguration
 import org.secapcompass.secapinventoryapi.domain.building.core.event.BuildingCreatedEvent
 import org.secapcompass.secapinventoryapi.domain.building.core.event.toAddress
@@ -71,7 +72,7 @@ class BuildingCreatedProjection(
             val e: BuildingCreatedEvent
             val emd: EventMetadata
             try {
-                e = gsonMapper.fromJson(event.originalEvent.eventData.decodeToString(), BuildingCreatedEvent::class.java)
+                e = Json.decodeFromString(event.originalEvent.eventData.decodeToString())
                 emd = gsonMapper.fromJson(event.originalEvent.userMetadata.decodeToString(), EventMetadata::class.java)
             } catch (ex: Exception) {
                 logger.error("Error while deserializing event data", ex)

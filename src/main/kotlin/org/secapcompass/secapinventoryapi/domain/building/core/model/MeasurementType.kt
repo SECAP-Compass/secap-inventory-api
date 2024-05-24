@@ -1,5 +1,8 @@
 package org.secapcompass.secapinventoryapi.domain.building.core.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class MeasurementType(s: String) {
     Electricity("Electricity"),
 
@@ -24,6 +27,7 @@ enum class MeasurementType(s: String) {
     Geothermal("Geothermal"),
 }
 
+@Serializable
 enum class MeasurementTypeHeader(s: String) {
     Electricity("Electricity"),
     DistrictHeatingAndCooling("District heating and cooling"),

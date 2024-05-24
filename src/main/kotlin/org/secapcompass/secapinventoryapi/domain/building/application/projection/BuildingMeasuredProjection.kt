@@ -8,6 +8,7 @@ import com.eventstore.dbclient.PersistentSubscriptionListener
 import com.eventstore.dbclient.ResolvedEvent
 import com.eventstore.dbclient.SubscriptionFilter
 import com.google.gson.Gson
+import kotlinx.serialization.json.Json
 import org.secapcompass.secapinventoryapi.configuration.ApplicationConfiguration
 import org.secapcompass.secapinventoryapi.domain.building.core.event.BuildingMeasuredEvent
 import org.secapcompass.secapinventoryapi.domain.building.core.model.BuildingMeasurement
@@ -19,6 +20,10 @@ import org.springframework.stereotype.Component
 import java.util.UUID
 import kotlin.jvm.optionals.getOrElse
 
+
+// We will not listen building.measured
+// We will listen building.measurement.calculated
+// But for this bounded context, we can call it building measurements.
 @Component
 class BuildingMeasuredProjection(
     private val buildingMeasurementRepository: IBuildingMeasurementRepository,
@@ -31,7 +36,7 @@ class BuildingMeasuredProjection(
     private val logger = LoggerFactory.getLogger(BuildingMeasuredProjection::class.java)
 
     init {
-        val EVENT_TYPE_PREFIX = "building.measured"
+        val EVENT_TYPE_PREFIX = "building.measurement.calculated"
         val filter = SubscriptionFilter.newBuilder().addEventTypePrefix(EVENT_TYPE_PREFIX).build()
 
         val opts =
@@ -60,6 +65,8 @@ class BuildingMeasuredProjection(
         logger.info("Subscribed to all events")
     }
 
+
+    // Here, we may use a coroutine pool?
     inner class BuildingMeasuredListener : PersistentSubscriptionListener() {
         override fun onEvent(
             subscription: PersistentSubscription,

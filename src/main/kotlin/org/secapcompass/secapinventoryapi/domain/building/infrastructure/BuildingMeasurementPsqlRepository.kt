@@ -33,8 +33,7 @@ class BuildingMeasurementPsqlRepository(private val buildingMeasurementJpaReposi
         typeHeaders: List<MeasurementTypeHeader>?,
         pageable: Pageable
     ): Page<BuildingMeasurement> {
-        TODO("Not yet implemented")
-
+        return Page.empty();
     }
 
 

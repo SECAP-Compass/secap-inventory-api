@@ -40,7 +40,10 @@ class BuildingPsqlRepository(private val buildingJpaRepository: BuildingJpaRepos
 
 @Repository
 interface BuildingJpaRepository : JpaRepository<Building, UUID>,
-    JpaSpecificationExecutor<Building>  {}
+    JpaSpecificationExecutor<Building>  {
+        fun findByAddressProvince(province: String, pageable: Pageable): Page<Building>
+
+    }
 
 class BuildingSpecification {
     companion object {
