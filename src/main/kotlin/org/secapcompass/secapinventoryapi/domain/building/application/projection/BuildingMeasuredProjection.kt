@@ -8,18 +8,19 @@ import com.eventstore.dbclient.PersistentSubscriptionListener
 import com.eventstore.dbclient.ResolvedEvent
 import com.eventstore.dbclient.SubscriptionFilter
 import com.google.gson.Gson
+import jakarta.persistence.LockModeType
+import jakarta.transaction.Transactional
 import org.secapcompass.secapinventoryapi.configuration.ApplicationConfiguration
 import org.secapcompass.secapinventoryapi.domain.building.core.event.BuildingMeasuredEvent
 import org.secapcompass.secapinventoryapi.domain.building.core.model.BuildingMeasurement
-import org.secapcompass.secapinventoryapi.domain.building.core.model.Report
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingMeasurementRepository
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingRepository
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IReportRepository
 import org.secapcompass.secapinventoryapi.domain.building.core.vo.MeasurementCalculation
-import org.secapcompass.secapinventoryapi.domain.building.infrastructure.ReportRepository
 import org.secapcompass.secapinventoryapi.shared.domain.ICityRepository
 import org.secapcompass.secapinventoryapi.shared.eventsourcing.EventMetadata
 import org.slf4j.LoggerFactory
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.stereotype.Component
 import java.util.UUID
 
@@ -114,14 +115,39 @@ class BuildingMeasuredProjection(
             val districtKey = city.districts.filter { it.value.name == building.get().address.district }.map { it.key }.first
             val district = city.districts[districtKey]
 
-            val cityId = String.format("%d_%d", 34, buildingMeasuredEvent.measurement.measurementDate.year)
+            val cityId = String.format("%d_%d", cityKey, buildingMeasuredEvent.measurement.measurementDate.year)
             val districtId = String.format("%s_%s_%d", districtKey, district)
 
-            val report = reportRepository.getById("34_2024_total")
+            try {
+                getReportAndUpdate(cityId,buildingMeasuredEvent)
+                getReportAndUpdate(districtId,buildingMeasuredEvent)
+                subscription.ack(event)
+            }
+            catch (e:RuntimeException){
+                e.printStackTrace()
+                when{
+                    retryCount>3 -> subscription.nack(NackAction.Retry, "An error has occured during calculation, retrying")
+                    else -> subscription.nack(NackAction.Park, "An error has occured during calculation, parking")
+                }
+            }
+        }
+
+        @Transactional
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        private fun getReportAndUpdate(reportId:String,buildingMeasuredEvent: BuildingMeasuredEvent){
+            val report = reportRepository.getById(reportId)
             val reportData = report.data as MeasurementCalculation
-            reportData.eF += buildingMeasuredEvent.measurement.measurementCalculation.eF
+            updateMeasurementData(reportData,buildingMeasuredEvent)
             reportRepository.save(report)
-            subscription.ack(event)
+        }
+        
+        private fun updateMeasurementData(reportData:MeasurementCalculation, buildingMeasuredEvent: BuildingMeasuredEvent) {
+            reportData.eF += buildingMeasuredEvent.measurement.measurementCalculation.eF
+            reportData.cO2E += buildingMeasuredEvent.measurement.measurementCalculation.cO2E
+            reportData.cO2 += buildingMeasuredEvent.measurement.measurementCalculation.cO2
+            reportData.cH4 += buildingMeasuredEvent.measurement.measurementCalculation.cH4
+            reportData.n2O += buildingMeasuredEvent.measurement.measurementCalculation.n2O
+            reportData.bioFuelCO2 += buildingMeasuredEvent.measurement.measurementCalculation.bioFuelCO2
         }
     }
 }
