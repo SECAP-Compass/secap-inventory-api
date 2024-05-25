@@ -6,41 +6,48 @@ import com.eventstore.dbclient.EventStoreDBConnectionString
 import com.eventstore.dbclient.EventStoreDBPersistentSubscriptionsClient
 import com.eventstore.dbclient.EventStoreDBProjectionManagementClient
 import com.google.gson.Gson
+import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
-@Configuration
-class EventStoreDBConfiguration {
-    @Value("\${eventstoredb.connectionString}")
-    lateinit var connectionString: String
+    @Configuration
+    class EventStoreDBConfiguration {
+        @Value("\${eventstoredb.connectionString}")
+        lateinit var connectionString: String
 
-    val logger = LoggerFactory.getLogger(EventStoreDBConfiguration::class.java)
+        private lateinit var  esdbClient: EventStoreDBClient
+        val logger = LoggerFactory.getLogger(EventStoreDBConfiguration::class.java)
 
-    fun eventStoreSettings(): EventStoreDBClientSettings {
-        logger.info("EventStore connection string: $connectionString")
-        return EventStoreDBConnectionString.parseOrThrow(connectionString)
+        fun eventStoreSettings(): EventStoreDBClientSettings {
+            logger.info("EventStore connection string: $connectionString")
+            return EventStoreDBConnectionString.parseOrThrow(connectionString)
+        }
+
+        @Bean
+        fun eventStoreDBClient(): EventStoreDBClient {
+            logger.info("Creating EventStoreDBClient")
+            return EventStoreDBClient.create(eventStoreSettings()).also { esdbClient = it }
+        }
+
+        @Bean
+        fun eventStorePersistentSubscriptionsClient(): EventStoreDBPersistentSubscriptionsClient {
+            return EventStoreDBPersistentSubscriptionsClient.from(esdbClient)
+        }
+
+        @Bean
+        fun eventStoreProjectionManagementClient(): EventStoreDBProjectionManagementClient {
+            return EventStoreDBProjectionManagementClient.from(esdbClient)
+        }
+
+        @Bean
+        fun gsonMapper(): Gson {
+            return Gson()
+        }
+
+        @PreDestroy()
+        fun preDestroy() {
+            esdbClient.shutdown()
+        }
     }
-
-    @Bean
-    fun eventStoreDBClient(): EventStoreDBClient {
-        logger.info("Creating EventStoreDBClient")
-        return EventStoreDBClient.create(eventStoreSettings())
-    }
-
-    @Bean
-    fun eventStorePersistentSubscriptionsClient(): EventStoreDBPersistentSubscriptionsClient {
-        return EventStoreDBPersistentSubscriptionsClient.from(eventStoreDBClient())
-    }
-
-    @Bean
-    fun eventStoreProjectionManagementClient(): EventStoreDBProjectionManagementClient {
-        return EventStoreDBProjectionManagementClient.from(eventStoreDBClient())
-    }
-
-    @Bean
-    fun gsonMapper(): Gson {
-        return Gson()
-    }
-}

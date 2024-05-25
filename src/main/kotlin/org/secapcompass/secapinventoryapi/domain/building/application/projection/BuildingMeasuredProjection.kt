@@ -8,26 +8,34 @@ import com.eventstore.dbclient.PersistentSubscriptionListener
 import com.eventstore.dbclient.ResolvedEvent
 import com.eventstore.dbclient.SubscriptionFilter
 import com.google.gson.Gson
-import kotlinx.serialization.json.Json
 import org.secapcompass.secapinventoryapi.configuration.ApplicationConfiguration
 import org.secapcompass.secapinventoryapi.domain.building.core.event.BuildingMeasuredEvent
 import org.secapcompass.secapinventoryapi.domain.building.core.model.BuildingMeasurement
+import org.secapcompass.secapinventoryapi.domain.building.core.model.Report
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingMeasurementRepository
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingRepository
+import org.secapcompass.secapinventoryapi.domain.building.core.repository.IReportRepository
+import org.secapcompass.secapinventoryapi.domain.building.core.vo.MeasurementCalculation
+import org.secapcompass.secapinventoryapi.domain.building.infrastructure.ReportRepository
+import org.secapcompass.secapinventoryapi.shared.domain.ICityRepository
 import org.secapcompass.secapinventoryapi.shared.eventsourcing.EventMetadata
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.util.UUID
-import kotlin.jvm.optionals.getOrElse
 
 
 // We will not listen building.measured
 // We will listen building.measurement.calculated
 // But for this bounded context, we can call it building measurements.
+
+
+// TODO: Event icerisinde city Id de olsun, address pairdeki
 @Component
 class BuildingMeasuredProjection(
     private val buildingMeasurementRepository: IBuildingMeasurementRepository,
     private val buildingRepository: IBuildingRepository,
+    private val cityRepository: ICityRepository,
+    private val reportRepository: IReportRepository,
     private val gsonMapper: Gson,
     eventStoreDBPersistentSubscriptionsClient: EventStoreDBPersistentSubscriptionsClient,
     applicationConfiguration: ApplicationConfiguration
@@ -75,8 +83,11 @@ class BuildingMeasuredProjection(
         ) {
             logger.info("Event received: ${event.event.eventType}. AggregateId: ${event.event.streamId}, EventId: ${event.event.eventId}")
 
-            buildingRepository.getBuildingById(UUID.fromString(event.event.streamId))
-                .getOrElse { subscription.nack(NackAction.Park, "building not found") }
+            val building = buildingRepository.getBuildingById(UUID.fromString(event.event.streamId))
+            if (building.isEmpty) {
+                subscription.nack(NackAction.Park, "building not found")
+                return
+            }
 
             val buildingMeasuredEvent: BuildingMeasuredEvent
             val emd: EventMetadata
@@ -96,7 +107,22 @@ class BuildingMeasuredProjection(
                 emd.occurredBy
             )
             buildingMeasurementRepository.saveBuildingMeasurement(buildingMeasurement)
+
+            val cityKey = cityRepository.getAllCities().filter { it.value.name==building.get().address.province }.map { it.key }.first()
+            val city = cityRepository.getCityById(Integer.valueOf(cityKey))
+
+            val districtKey = city.districts.filter { it.value.name == building.get().address.district }.map { it.key }.first
+            val district = city.districts[districtKey]
+
+            val cityId = String.format("%d_%d", 34, buildingMeasuredEvent.measurement.measurementDate.year)
+            val districtId = String.format("%s_%s_%d", districtKey, district)
+
+            val report = reportRepository.getById("34_2024_total")
+            val reportData = report.data as MeasurementCalculation
+            reportData.eF += buildingMeasuredEvent.measurement.measurementCalculation.eF
+            reportRepository.save(report)
             subscription.ack(event)
         }
     }
 }
+
