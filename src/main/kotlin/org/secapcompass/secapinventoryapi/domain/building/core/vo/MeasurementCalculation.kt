@@ -4,10 +4,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class MeasurementCalculation(
-    val cO2: Double,
-    val cH4: Double,
-    val n2O: Double,
-    val cO2E: Double,
-    val bioFuelCO2: Double,
-    val eF: Double
+    var cO2: Double,
+    var cH4: Double,
+    var n2O: Double,
+    var cO2E: Double,
+    var bioFuelCO2: Double,
+    var eF: Double
 )
