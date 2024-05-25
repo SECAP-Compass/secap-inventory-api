@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.stereotype.Repository
 import java.util.UUID
 
@@ -33,14 +34,18 @@ class BuildingMeasurementPsqlRepository(private val buildingMeasurementJpaReposi
         typeHeaders: List<MeasurementTypeHeader>?,
         pageable: Pageable
     ): Page<BuildingMeasurement> {
-        return Page.empty();
+        return buildingMeasurementJpaRepository
+            .findAll(BuildingMeasurementSpecification
+                .filterBuildingMeasurement(startDate,endDate,types,typeHeaders),pageable)
+
     }
 
 
 }
 
 @Repository
-interface BuildingMeasurementJpaRepository : JpaRepository<BuildingMeasurement, UUID> {
+interface BuildingMeasurementJpaRepository : JpaRepository<BuildingMeasurement, UUID> ,
+    JpaSpecificationExecutor<BuildingMeasurement> {
 
     fun findAllByBuildingId(buildingId: UUID, pageable: Pageable): Page<BuildingMeasurement>
     fun findByMeasurementMeasurementType(measurementType: MeasurementType, pageable: Pageable): Page<BuildingMeasurement>
