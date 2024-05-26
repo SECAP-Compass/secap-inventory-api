@@ -17,12 +17,14 @@ import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuild
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingRepository
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IReportRepository
 import org.secapcompass.secapinventoryapi.domain.building.core.vo.MeasurementCalculation
+import org.secapcompass.secapinventoryapi.domain.building.core.vo.ReportBatch
 import org.secapcompass.secapinventoryapi.shared.domain.ICityRepository
 import org.secapcompass.secapinventoryapi.shared.eventsourcing.EventMetadata
 import org.slf4j.LoggerFactory
 import org.springframework.data.jpa.repository.Lock
 import org.springframework.stereotype.Component
-import java.util.UUID
+import java.util.*
+import kotlin.collections.ArrayList
 
 
 // We will not listen building.measured
@@ -39,11 +41,14 @@ class BuildingMeasuredProjection(
     private val reportRepository: IReportRepository,
     private val gsonMapper: Gson,
     eventStoreDBPersistentSubscriptionsClient: EventStoreDBPersistentSubscriptionsClient,
-    applicationConfiguration: ApplicationConfiguration
+    applicationConfiguration: ApplicationConfiguration,
+    val buildingMeasurementList: ArrayList<BuildingMeasurement> = ArrayList<BuildingMeasurement>(),
+    val transactionThreshold : Int = 10,
+    val reportBatch: ReportBatch,
+    val timeout:Long
 ) {
 
     private val logger = LoggerFactory.getLogger(BuildingMeasuredProjection::class.java)
-
     init {
         val EVENT_TYPE_PREFIX = "building.measurement.calculated"
         val filter = SubscriptionFilter.newBuilder().addEventTypePrefix(EVENT_TYPE_PREFIX).build()
@@ -108,6 +113,7 @@ class BuildingMeasuredProjection(
                 emd.occurredBy
             )
             buildingMeasurementRepository.saveBuildingMeasurement(buildingMeasurement)
+            buildingMeasurementList.add(buildingMeasurement)
 
             val cityKey = cityRepository.getAllCities().filter { it.value.name==building.get().address.province }.map { it.key }.first()
             val city = cityRepository.getCityById(Integer.valueOf(cityKey))
@@ -120,7 +126,7 @@ class BuildingMeasuredProjection(
 
             try {
                 getReportAndUpdate(cityId,buildingMeasuredEvent)
-                getReportAndUpdate(districtId,buildingMeasuredEvent)
+                //getReportAndUpdate(districtId,buildingMeasuredEvent)
                 subscription.ack(event)
             }
             catch (e:RuntimeException){
@@ -135,10 +141,40 @@ class BuildingMeasuredProjection(
         @Transactional
         @Lock(LockModeType.PESSIMISTIC_WRITE)
         private fun getReportAndUpdate(reportId:String,buildingMeasuredEvent: BuildingMeasuredEvent){
-            val report = reportRepository.getById(reportId)
-            val reportData = report.data as MeasurementCalculation
+            if(reportBatch.isFirstCalculation){
+                reportBatch.report = reportRepository.getById(reportId)
+                reportBatch.isFirstCalculation = false
+            }
+            cancelReportBatchTimer()
+            reportBatch.count += 1
+            val reportData = reportBatch.report.data as MeasurementCalculation
             updateMeasurementData(reportData,buildingMeasuredEvent)
-            reportRepository.save(report)
+            startReportBatchTimer(timeout)
+            if(reportBatch.count>=transactionThreshold){
+                executeUpdateOnReport()
+            }
+        }
+
+        private fun executeUpdateOnReport(){
+            reportRepository.save(reportBatch.report)
+            reportBatch.count = 0
+            reportBatch.isFirstCalculation = true
+        }
+
+        private fun cancelReportBatchTimer(){
+            reportBatch.timerTask.cancel()
+            reportBatch.timer.cancel()
+            reportBatch.timer.purge()
+        }
+
+        private fun startReportBatchTimer(timeout:Long){
+            reportBatch.timer = Timer()
+            reportBatch.timerTask = object : TimerTask() {
+                override fun run() {
+                    executeUpdateOnReport()
+                }
+            }
+            reportBatch.timer.schedule(reportBatch.timerTask,0,timeout)
         }
         
         private fun updateMeasurementData(reportData:MeasurementCalculation, buildingMeasuredEvent: BuildingMeasuredEvent) {
