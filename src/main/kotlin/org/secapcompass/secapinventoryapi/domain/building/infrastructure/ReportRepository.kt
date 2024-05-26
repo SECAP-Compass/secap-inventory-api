@@ -5,12 +5,17 @@ import org.secapcompass.secapinventoryapi.domain.building.core.repository.IRepor
 import org.secapcompass.secapinventoryapi.domain.building.exception.ReportNotFoundException
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
+import java.util.*
 
 @Repository
 class ReportRepository(private val reportJpaRepository: ReportJpaRepository): IReportRepository {
 
-    override fun getById(id: String): Report {
-        return reportJpaRepository.findById(id).orElseThrow { ReportNotFoundException("Report ID $id not found") }
+    override fun getById(id: String): Optional<Report> {
+        return reportJpaRepository.findById(id)
+    }
+
+    override fun save(report: Report) {
+        reportJpaRepository.save(report)
     }
 }
 

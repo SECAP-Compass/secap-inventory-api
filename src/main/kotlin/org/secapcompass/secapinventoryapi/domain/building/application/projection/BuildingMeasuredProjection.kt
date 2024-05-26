@@ -13,6 +13,7 @@ import jakarta.transaction.Transactional
 import org.secapcompass.secapinventoryapi.configuration.ApplicationConfiguration
 import org.secapcompass.secapinventoryapi.domain.building.core.event.BuildingMeasuredEvent
 import org.secapcompass.secapinventoryapi.domain.building.core.model.BuildingMeasurement
+import org.secapcompass.secapinventoryapi.domain.building.core.model.Report
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingMeasurementRepository
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingRepository
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IReportRepository
@@ -42,11 +43,11 @@ class BuildingMeasuredProjection(
     private val gsonMapper: Gson,
     eventStoreDBPersistentSubscriptionsClient: EventStoreDBPersistentSubscriptionsClient,
     applicationConfiguration: ApplicationConfiguration,
-    val buildingMeasurementList: ArrayList<BuildingMeasurement> = ArrayList<BuildingMeasurement>(),
-    val transactionThreshold : Int = 10,
-    val reportBatch: ReportBatch,
-    val timeout:Long
+    val buildingMeasurementList: ArrayList<BuildingMeasurement> = ArrayList(),
 ) {
+    private val transactionThreshold : Int = 10
+    private val reportBatch: ReportBatch = ReportBatch()
+    private var timeout: Long = 100
 
     private val logger = LoggerFactory.getLogger(BuildingMeasuredProjection::class.java)
     init {
@@ -78,7 +79,6 @@ class BuildingMeasuredProjection(
 
         logger.info("Subscribed to all events")
     }
-
 
     // Here, we may use a coroutine pool?
     inner class BuildingMeasuredListener : PersistentSubscriptionListener() {
@@ -118,73 +118,88 @@ class BuildingMeasuredProjection(
             val cityKey = cityRepository.getAllCities().filter { it.value.name==building.get().address.province }.map { it.key }.first()
             val city = cityRepository.getCityById(Integer.valueOf(cityKey))
 
-            val districtKey = city.districts.filter { it.value.name == building.get().address.district }.map { it.key }.first
+            val districtKey = city.districts.filter { it.value.name == building.get().address.district }.map { it.key }.first()
             val district = city.districts[districtKey]
 
-            val cityId = String.format("%d_%d", cityKey, buildingMeasuredEvent.measurement.measurementDate.year)
-            val districtId = String.format("%s_%s_%d", districtKey, district)
+            val cityId = String.format("%s_%d", cityKey, buildingMeasuredEvent.measurement.measurementDate.year)
+            //val districtId = String.format("%s_%s_%d", districtKey, district)
 
             try {
-                getReportAndUpdate(cityId,buildingMeasuredEvent)
+                getReportAndUpdate(cityId, buildingMeasuredEvent)
                 //getReportAndUpdate(districtId,buildingMeasuredEvent)
                 subscription.ack(event)
             }
             catch (e:RuntimeException){
                 e.printStackTrace()
-                when{
-                    retryCount>3 -> subscription.nack(NackAction.Retry, "An error has occured during calculation, retrying")
-                    else -> subscription.nack(NackAction.Park, "An error has occured during calculation, parking")
+                if (retryCount > 2) {
+                    subscription.nack(NackAction.Park, "failed to deserialize event data")
+                } else {
+                    subscription.nack(NackAction.Retry, "failed to deserialize event data")
                 }
             }
         }
+    }
 
-        @Transactional
-        @Lock(LockModeType.PESSIMISTIC_WRITE)
-        private fun getReportAndUpdate(reportId:String,buildingMeasuredEvent: BuildingMeasuredEvent){
-            if(reportBatch.isFirstCalculation){
-                reportBatch.report = reportRepository.getById(reportId)
-                reportBatch.isFirstCalculation = false
-            }
-            cancelReportBatchTimer()
-            reportBatch.count += 1
-            val reportData = reportBatch.report.data as MeasurementCalculation
-            updateMeasurementData(reportData,buildingMeasuredEvent)
-            startReportBatchTimer(timeout)
-            if(reportBatch.count>=transactionThreshold){
-                executeUpdateOnReport()
-            }
+    @Transactional
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    fun getReportAndUpdate(reportId: String, buildingMeasuredEvent: BuildingMeasuredEvent){
+
+        if (reportBatch.isFirstCalculation) {
+            reportBatch.report = reportRepository.getById(reportId).orElseGet { Report(reportId,null) }
+            reportBatch.isFirstCalculation = false
         }
 
-        private fun executeUpdateOnReport(){
-            reportRepository.save(reportBatch.report)
+        reportBatch.count += 1
+
+        val calculation: MeasurementCalculation
+        if (reportBatch.report?.data == null) {
+            calculation = MeasurementCalculation()
+        } else {
+            calculation = reportBatch.report!!.data!! as MeasurementCalculation
+        }
+
+        updateMeasurementData(calculation, buildingMeasuredEvent)
+        cancelReportBatchTimer()
+        startReportBatchTimer(timeout)
+
+        reportBatch.report?.data = calculation
+
+        if(reportBatch.count >= transactionThreshold){
+            executeUpdateOnReport()
+        }
+    }
+
+    private fun executeUpdateOnReport(){
+        if (reportBatch.count > 0) {
+            reportRepository.save(reportBatch.report!!)
             reportBatch.count = 0
             reportBatch.isFirstCalculation = true
         }
+    }
 
-        private fun cancelReportBatchTimer(){
-            reportBatch.timerTask.cancel()
-            reportBatch.timer.cancel()
-            reportBatch.timer.purge()
-        }
+    private fun cancelReportBatchTimer(){
+        reportBatch.timerTask?.cancel()
+        reportBatch.timer.cancel()
+        reportBatch.timer.purge()
+    }
 
-        private fun startReportBatchTimer(timeout:Long){
-            reportBatch.timer = Timer()
-            reportBatch.timerTask = object : TimerTask() {
-                override fun run() {
-                    executeUpdateOnReport()
-                }
+    private fun startReportBatchTimer(timeout:Long){
+        reportBatch.timer = Timer()
+        reportBatch.timerTask = object : TimerTask() {
+            override fun run() {
+                executeUpdateOnReport()
             }
-            reportBatch.timer.schedule(reportBatch.timerTask,0,timeout)
         }
-        
-        private fun updateMeasurementData(reportData:MeasurementCalculation, buildingMeasuredEvent: BuildingMeasuredEvent) {
-            reportData.eF += buildingMeasuredEvent.measurement.measurementCalculation.eF
-            reportData.cO2E += buildingMeasuredEvent.measurement.measurementCalculation.cO2E
-            reportData.cO2 += buildingMeasuredEvent.measurement.measurementCalculation.cO2
-            reportData.cH4 += buildingMeasuredEvent.measurement.measurementCalculation.cH4
-            reportData.n2O += buildingMeasuredEvent.measurement.measurementCalculation.n2O
-            reportData.bioFuelCO2 += buildingMeasuredEvent.measurement.measurementCalculation.bioFuelCO2
-        }
+        reportBatch.timer.schedule(reportBatch.timerTask,0, timeout)
+    }
+
+    private fun updateMeasurementData(reportData:MeasurementCalculation, buildingMeasuredEvent: BuildingMeasuredEvent) {
+        reportData.EF += buildingMeasuredEvent.measurement.measurementCalculation.EF
+        reportData.CO2e += buildingMeasuredEvent.measurement.measurementCalculation.CO2e
+        reportData.CO2 += buildingMeasuredEvent.measurement.measurementCalculation.CO2
+        reportData.CH4 += buildingMeasuredEvent.measurement.measurementCalculation.CH4
+        reportData.N2O += buildingMeasuredEvent.measurement.measurementCalculation.N2O
+        reportData.BiofuelCO2 += buildingMeasuredEvent.measurement.measurementCalculation.BiofuelCO2
     }
 }
 

@@ -33,12 +33,12 @@ import org.springframework.context.annotation.Configuration
 
         @Bean
         fun eventStorePersistentSubscriptionsClient(): EventStoreDBPersistentSubscriptionsClient {
-            return EventStoreDBPersistentSubscriptionsClient.from(esdbClient)
+            return EventStoreDBPersistentSubscriptionsClient.from(eventStoreDBClient())
         }
 
         @Bean
         fun eventStoreProjectionManagementClient(): EventStoreDBProjectionManagementClient {
-            return EventStoreDBProjectionManagementClient.from(esdbClient)
+            return EventStoreDBProjectionManagementClient.from(eventStoreDBClient())
         }
 
         @Bean

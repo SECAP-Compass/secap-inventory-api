@@ -72,7 +72,7 @@ class BuildingCreatedProjection(
             val e: BuildingCreatedEvent
             val emd: EventMetadata
             try {
-                e = Json.decodeFromString(event.originalEvent.eventData.decodeToString())
+                e = gsonMapper.fromJson(event.originalEvent.eventData.decodeToString(), BuildingCreatedEvent::class.java)
                 emd = gsonMapper.fromJson(event.originalEvent.userMetadata.decodeToString(), EventMetadata::class.java)
             } catch (ex: Exception) {
                 logger.error("Error while deserializing event data", ex)
