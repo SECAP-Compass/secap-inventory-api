@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.data.jpa.repository.Lock
 import org.springframework.stereotype.Component
 import java.util.*
-import kotlin.collections.ArrayList
 
 
 // We will not listen building.measured
@@ -43,16 +42,21 @@ class BuildingMeasuredProjection(
     private val gsonMapper: Gson,
     eventStoreDBPersistentSubscriptionsClient: EventStoreDBPersistentSubscriptionsClient,
     applicationConfiguration: ApplicationConfiguration,
-    val buildingMeasurementList: ArrayList<BuildingMeasurement> = ArrayList(),
 ) {
     private val transactionThreshold : Int = 10
-    private val reportBatch: ReportBatch = ReportBatch()
+    private var reportBatchCity: ReportBatch = ReportBatch()
+    private var reportBatchDistrict: ReportBatch = ReportBatch()
     private var timeout: Long = 100
+
+
 
     private val logger = LoggerFactory.getLogger(BuildingMeasuredProjection::class.java)
     init {
         val EVENT_TYPE_PREFIX = "building.measurement.calculated"
         val filter = SubscriptionFilter.newBuilder().addEventTypePrefix(EVENT_TYPE_PREFIX).build()
+
+        reportBatchCity.setTimerTask(::executeUpdateOnReport)
+        reportBatchCity.setTimerTask(::executeUpdateOnReport)
 
         val opts =
             CreatePersistentSubscriptionToAllOptions.get()
@@ -113,7 +117,6 @@ class BuildingMeasuredProjection(
                 emd.occurredBy
             )
             buildingMeasurementRepository.saveBuildingMeasurement(buildingMeasurement)
-            buildingMeasurementList.add(buildingMeasurement)
 
             val cityKey = cityRepository.getAllCities().filter { it.value.name==building.get().address.province }.map { it.key }.first()
             val city = cityRepository.getCityById(Integer.valueOf(cityKey))
@@ -122,11 +125,15 @@ class BuildingMeasuredProjection(
             val district = city.districts[districtKey]
 
             val cityId = String.format("%s_%d", cityKey, buildingMeasuredEvent.measurement.measurementDate.year)
-            //val districtId = String.format("%s_%s_%d", districtKey, district)
+            val districtId = String.format("%s_%s_%d", districtKey, district)
+
 
             try {
-                getReportAndUpdate(cityId, buildingMeasuredEvent)
-                //getReportAndUpdate(districtId,buildingMeasuredEvent)
+                /*
+                * these two could be handled outside of same try block
+                * */
+                getReportAndUpdate(cityId, buildingMeasuredEvent,reportBatchCity)
+                getReportAndUpdate(districtId, buildingMeasuredEvent,reportBatchDistrict)
                 subscription.ack(event)
             }
             catch (e:RuntimeException){
@@ -142,55 +149,36 @@ class BuildingMeasuredProjection(
 
     @Transactional
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    fun getReportAndUpdate(reportId: String, buildingMeasuredEvent: BuildingMeasuredEvent){
+    fun getReportAndUpdate(reportId: String, buildingMeasuredEvent: BuildingMeasuredEvent, reportBatch: ReportBatch){
 
-        if (reportBatch.isFirstCalculation) {
+        if (reportBatch.count < 1) {
             reportBatch.report = reportRepository.getById(reportId).orElseGet { Report(reportId,null) }
-            reportBatch.isFirstCalculation = false
         }
 
         reportBatch.count += 1
 
-        val calculation: MeasurementCalculation
-        if (reportBatch.report?.data == null) {
-            calculation = MeasurementCalculation()
+        val calculation: MeasurementCalculation = if (reportBatch.report?.data == null) {
+            MeasurementCalculation()
         } else {
-            calculation = reportBatch.report!!.data!! as MeasurementCalculation
+            reportBatch.report!!.data!! as MeasurementCalculation
         }
 
         updateMeasurementData(calculation, buildingMeasuredEvent)
-        cancelReportBatchTimer()
-        startReportBatchTimer(timeout)
+        reportBatch.cancelReportBatchTimer()
+        reportBatch.startReportBatchTimer(timeout)
 
         reportBatch.report?.data = calculation
 
         if(reportBatch.count >= transactionThreshold){
-            executeUpdateOnReport()
+            executeUpdateOnReport(reportBatch)
         }
     }
 
-    private fun executeUpdateOnReport(){
+    private fun executeUpdateOnReport(reportBatch: ReportBatch){
         if (reportBatch.count > 0) {
             reportRepository.save(reportBatch.report!!)
             reportBatch.count = 0
-            reportBatch.isFirstCalculation = true
         }
-    }
-
-    private fun cancelReportBatchTimer(){
-        reportBatch.timerTask?.cancel()
-        reportBatch.timer.cancel()
-        reportBatch.timer.purge()
-    }
-
-    private fun startReportBatchTimer(timeout:Long){
-        reportBatch.timer = Timer()
-        reportBatch.timerTask = object : TimerTask() {
-            override fun run() {
-                executeUpdateOnReport()
-            }
-        }
-        reportBatch.timer.schedule(reportBatch.timerTask,0, timeout)
     }
 
     private fun updateMeasurementData(reportData:MeasurementCalculation, buildingMeasuredEvent: BuildingMeasuredEvent) {
