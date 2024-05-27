@@ -6,7 +6,9 @@ import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
 import org.secapcompass.secapinventoryapi.domain.building.core.model.*
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingMeasurementRepository
+import org.secapcompass.secapinventoryapi.domain.building.core.vo.GasTypes
 import org.secapcompass.secapinventoryapi.domain.building.core.vo.Measurement
+import org.secapcompass.secapinventoryapi.domain.building.core.vo.MeasurementCalculation
 import org.secapcompass.secapinventoryapi.domain.building.core.vo.MeasurementDate
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -32,12 +34,12 @@ class BuildingMeasurementPsqlRepository(private val buildingMeasurementJpaReposi
         endDate: MeasurementDate?,
         types: List<MeasurementType>?,
         typeHeaders: List<MeasurementTypeHeader>?,
+        gasTypes: List<String>?,
         pageable: Pageable
     ): Page<BuildingMeasurement> {
         return buildingMeasurementJpaRepository
             .findAll(BuildingMeasurementSpecification
-                .filterBuildingMeasurement(startDate,endDate,types,typeHeaders),pageable)
-
+                .filterBuildingMeasurement(startDate,endDate,types,typeHeaders,gasTypes),pageable)
     }
 
 
@@ -59,7 +61,8 @@ class BuildingMeasurementSpecification {
         fun filterBuildingMeasurement(startDate: MeasurementDate?,
                                       endDate: MeasurementDate?,
                                       types: List<MeasurementType>?,
-                                      typeHeaders: List<MeasurementTypeHeader>?): Specification<BuildingMeasurement> {
+                                      typeHeaders: List<MeasurementTypeHeader>?,
+                                      gasTypes: List<String>?): Specification<BuildingMeasurement> {
             return Specification { root: Root<BuildingMeasurement>, query: CriteriaQuery<*>, criteriaBuilder: CriteriaBuilder ->
                 val predicates = mutableListOf<Predicate>()
 
@@ -97,6 +100,16 @@ class BuildingMeasurementSpecification {
                         .add(criteriaBuilder.equal(root
                             .get<Measurement>("measurement")
                             .get<MeasurementDate>("measurementDate"),endDate))
+                }
+
+                if(gasTypes != null){
+                    if(gasTypes.isNotEmpty()){
+                        gasTypes.forEach { gasType ->
+                            predicates.add(criteriaBuilder.equal(root
+                                    .get<Measurement>("measurement")
+                                    .get<MeasurementCalculation>("measurementCalculation"), gasType))
+                        }
+                    }
                 }
                 criteriaBuilder.and(*predicates.toTypedArray())
             }
