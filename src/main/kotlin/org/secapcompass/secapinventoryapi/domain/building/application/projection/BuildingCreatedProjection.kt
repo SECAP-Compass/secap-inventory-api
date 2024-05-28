@@ -8,7 +8,6 @@ import com.eventstore.dbclient.PersistentSubscriptionListener
 import com.eventstore.dbclient.ResolvedEvent
 import com.eventstore.dbclient.SubscriptionFilter
 import com.google.gson.Gson
-import kotlinx.serialization.json.Json
 import org.secapcompass.secapinventoryapi.configuration.ApplicationConfiguration
 import org.secapcompass.secapinventoryapi.domain.building.core.event.BuildingCreatedEvent
 import org.secapcompass.secapinventoryapi.domain.building.core.event.toAddress

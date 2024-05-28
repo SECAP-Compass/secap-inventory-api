@@ -12,6 +12,7 @@ import jakarta.persistence.LockModeType
 import jakarta.transaction.Transactional
 import org.secapcompass.secapinventoryapi.configuration.ApplicationConfiguration
 import org.secapcompass.secapinventoryapi.domain.building.core.event.BuildingMeasuredEvent
+import org.secapcompass.secapinventoryapi.domain.building.core.model.Building
 import org.secapcompass.secapinventoryapi.domain.building.core.model.BuildingMeasurement
 import org.secapcompass.secapinventoryapi.domain.building.core.model.Report
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingMeasurementRepository
@@ -85,7 +86,9 @@ class BuildingMeasuredProjection(
     }
 
     // Here, we may use a coroutine pool?
-    inner class BuildingMeasuredListener : PersistentSubscriptionListener() {
+    open inner class BuildingMeasuredListener : PersistentSubscriptionListener() {
+
+        @Transactional
         override fun onEvent(
             subscription: PersistentSubscription,
             retryCount: Int,
@@ -116,28 +119,10 @@ class BuildingMeasuredProjection(
                 buildingMeasuredEvent.measurement,
                 emd.occurredBy
             )
-            buildingMeasurementRepository.saveBuildingMeasurement(buildingMeasurement)
-
-            val cityKey = cityRepository.getAllCities().filter { it.value.name==building.get().address.province }.map { it.key }.first()
-            val city = cityRepository.getCityById(Integer.valueOf(cityKey))
-
-            val districtKey = city.districts.filter { it.value.name == building.get().address.district }.map { it.key }.first()
-            val district = city.districts[districtKey]
-
-            val cityId = String.format("%s_%d", cityKey, buildingMeasuredEvent.measurement.measurementDate.year)
-            val districtId = String.format("%s_%s_%d", districtKey, district)
-
 
             try {
-                /*
-                * these two could be handled outside of same try block
-                * */
-                getReportAndUpdate(cityId, buildingMeasuredEvent,reportBatchCity)
-                getReportAndUpdate(districtId, buildingMeasuredEvent,reportBatchDistrict)
-                subscription.ack(event)
-            }
-            catch (e:RuntimeException){
-                e.printStackTrace()
+                processEvent(building.get(), buildingMeasurement, buildingMeasuredEvent)
+            } catch (e: Exception) {
                 if (retryCount > 2) {
                     subscription.nack(NackAction.Park, "failed to deserialize event data")
                 } else {
@@ -147,9 +132,33 @@ class BuildingMeasuredProjection(
         }
     }
 
-    @Transactional
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    fun getReportAndUpdate(reportId: String, buildingMeasuredEvent: BuildingMeasuredEvent, reportBatch: ReportBatch){
+    fun processEvent(
+        building: Building,
+        buildingMeasurement: BuildingMeasurement,
+        buildingMeasuredEvent: BuildingMeasuredEvent
+    ) {
+
+        val cityKey =
+            cityRepository.getAllCities().filter { it.value.name == building.address.province }.map { it.key }.first()
+        val city = cityRepository.getCityById(Integer.valueOf(cityKey))
+
+        val districtKey = city.districts.filter { it.value.name == building.address.district }.map { it.key }.first()
+        val district = city.districts[districtKey]
+
+        val cityId = String.format("%s_%d", cityKey, buildingMeasuredEvent.measurement.measurementDate.year)
+        val districtId = String.format("%s_%s_%d", districtKey, district)
+
+        buildingMeasurementRepository.saveBuildingMeasurement(buildingMeasurement)
+        getReportAndUpdate(cityId, buildingMeasuredEvent, reportBatchCity)
+        getReportAndUpdate(districtId, buildingMeasuredEvent, reportBatchDistrict)
+    }
+
+    private fun getReportAndUpdate(
+        reportId: String,
+        buildingMeasuredEvent: BuildingMeasuredEvent,
+        reportBatch: ReportBatch
+    ) {
 
         if (reportBatch.count < 1) {
             reportBatch.report = reportRepository.getById(reportId).orElseGet { Report(reportId,null) }
