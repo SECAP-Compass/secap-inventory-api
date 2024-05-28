@@ -57,7 +57,7 @@ class BuildingMeasuredProjection(
         val filter = SubscriptionFilter.newBuilder().addEventTypePrefix(EVENT_TYPE_PREFIX).build()
 
         reportBatchCity.setTimerTask(::executeUpdateOnReport)
-        reportBatchCity.setTimerTask(::executeUpdateOnReport)
+        reportBatchDistrict.setTimerTask(::executeUpdateOnReport)
 
         val opts =
             CreatePersistentSubscriptionToAllOptions.get()
@@ -147,7 +147,7 @@ class BuildingMeasuredProjection(
         val district = city.districts[districtKey]
 
         val cityId = String.format("%s_%d", cityKey, buildingMeasuredEvent.measurement.measurementDate.year)
-        val districtId = String.format("%s_%s_%d", districtKey, district)
+        val districtId = String.format("%s_%s_%d", cityKey, districtKey, buildingMeasuredEvent.measurement.measurementDate.year)
 
         buildingMeasurementRepository.saveBuildingMeasurement(buildingMeasurement)
         getReportAndUpdate(cityId, buildingMeasuredEvent, reportBatchCity)
