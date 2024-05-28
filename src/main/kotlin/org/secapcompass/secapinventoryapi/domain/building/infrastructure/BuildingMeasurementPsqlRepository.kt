@@ -6,7 +6,6 @@ import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
 import org.secapcompass.secapinventoryapi.domain.building.core.model.*
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingMeasurementRepository
-import org.secapcompass.secapinventoryapi.domain.building.core.vo.GasTypes
 import org.secapcompass.secapinventoryapi.domain.building.core.vo.Measurement
 import org.secapcompass.secapinventoryapi.domain.building.core.vo.MeasurementCalculation
 import org.secapcompass.secapinventoryapi.domain.building.core.vo.MeasurementDate

@@ -3,7 +3,6 @@ package org.secapcompass.secapinventoryapi.domain.building.core.repository
 import org.secapcompass.secapinventoryapi.domain.building.core.model.BuildingMeasurement
 import org.secapcompass.secapinventoryapi.domain.building.core.model.MeasurementType
 import org.secapcompass.secapinventoryapi.domain.building.core.model.MeasurementTypeHeader
-import org.secapcompass.secapinventoryapi.domain.building.core.vo.GasTypes
 import org.secapcompass.secapinventoryapi.domain.building.core.vo.MeasurementDate
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable

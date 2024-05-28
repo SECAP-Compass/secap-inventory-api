@@ -47,6 +47,7 @@ class MeasurementController(private val buildingMeasurementRepository: IBuilding
             getMeasurementByFilterRequest.endDate,
             getMeasurementByFilterRequest.types,
             getMeasurementByFilterRequest.typeHeaders,
+            getMeasurementByFilterRequest.gasTypes,
             pageable
         )
     }

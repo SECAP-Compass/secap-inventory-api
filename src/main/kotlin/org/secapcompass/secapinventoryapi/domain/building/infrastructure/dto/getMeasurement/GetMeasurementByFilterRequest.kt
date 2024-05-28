@@ -9,6 +9,7 @@ data class GetMeasurementByFilterRequest(
     val endDate: MeasurementDate,
     val types: List<MeasurementType>,
     val typeHeaders: List<MeasurementTypeHeader>,
+    val gasTypes: List<String>,
     val page: Int = 0,
     val size: Int = 10
 )
