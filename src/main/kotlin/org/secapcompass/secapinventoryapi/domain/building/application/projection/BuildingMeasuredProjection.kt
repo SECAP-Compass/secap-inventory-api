@@ -25,6 +25,7 @@ import org.secapcompass.secapinventoryapi.shared.eventsourcing.EventMetadata
 import org.slf4j.LoggerFactory
 import org.springframework.data.jpa.repository.Lock
 import org.springframework.stereotype.Component
+import java.time.Instant
 import java.util.*
 
 
@@ -55,9 +56,6 @@ class BuildingMeasuredProjection(
     init {
         val EVENT_TYPE_PREFIX = "building.measurement.calculated"
         val filter = SubscriptionFilter.newBuilder().addEventTypePrefix(EVENT_TYPE_PREFIX).build()
-
-        reportBatchCity.setTimerTask(::executeUpdateOnReport)
-        reportBatchDistrict.setTimerTask(::executeUpdateOnReport)
 
         val opts =
             CreatePersistentSubscriptionToAllOptions.get()
@@ -122,7 +120,9 @@ class BuildingMeasuredProjection(
 
             try {
                 processEvent(building.get(), buildingMeasurement, buildingMeasuredEvent)
+                subscription.ack(event)
             } catch (e: Exception) {
+                logger.error(e.toString())
                 if (retryCount > 2) {
                     subscription.nack(NackAction.Park, "failed to deserialize event data")
                 } else {
@@ -174,7 +174,7 @@ class BuildingMeasuredProjection(
 
         updateMeasurementData(calculation, buildingMeasuredEvent)
         reportBatch.cancelReportBatchTimer()
-        reportBatch.startReportBatchTimer(timeout)
+        reportBatch.startReportBatchTimer(timeout,::executeUpdateOnReport)
 
         reportBatch.report?.data = calculation
 
@@ -185,6 +185,13 @@ class BuildingMeasuredProjection(
 
     private fun executeUpdateOnReport(reportBatch: ReportBatch){
         if (reportBatch.count > 0) {
+            if(reportBatch.count>=transactionThreshold){
+                logger.info("ReportBatch update is done after threshold reached.")
+            }
+            else{
+                logger.info("ReportBatch update is done after timeout.")
+            }
+            reportBatch.report!!.lastModifiedDate = Instant.now()
             reportRepository.save(reportBatch.report!!)
             reportBatch.count = 0
         }

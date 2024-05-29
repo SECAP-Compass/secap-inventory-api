@@ -6,28 +6,24 @@ import java.util.*
 data class ReportBatch (
     var report: Report? = null,
     var count: Int = 0,
-    var timer: Timer = Timer(),
+    var timer: Timer? = null,
     var timerTask: TimerTask? = null
 ){
     fun cancelReportBatchTimer(){
         //timerTask?.cancel()
-        timer.cancel()
-        timer.purge()
+        if(timer!=null){
+            timer!!.cancel()
+            timer!!.purge()
+        }
     }
 
-    fun setTimerTask(updateFunction: (ReportBatch) -> Unit){
+    fun startReportBatchTimer(timeout:Long,updateFunction: (ReportBatch) -> Unit){
+        timer = Timer()
         timerTask = object : TimerTask() {
             override fun run() {
                 updateFunction(this@ReportBatch)
             }
         }
-    }
-
-    fun startReportBatchTimer(timeout:Long){
-        if(timerTask == null){
-            throw RuntimeException("timerTask is null, try calling setTimerTask method first")
-        }
-        timer = Timer()
-        timer.schedule(timerTask,0, timeout)
+        timer!!.schedule(timerTask,timeout)
     }
 }

@@ -16,5 +16,5 @@ data class Report(
     @Id val id: String,
     @Convert(converter = CalculationConverter::class)
     var data: MeasurementCalculation?,
-    val lastModifiedDate: Instant = Instant.now(),
+    var lastModifiedDate: Instant = Instant.now(),
 )
