@@ -32,25 +32,29 @@ class MeasurementController(private val buildingMeasurementRepository: IBuilding
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int
     ): Page<BuildingMeasurement>{
-        println("here!")
         val pageable = PageRequest.of(page, size)
         return buildingMeasurementRepository.getBuildingMeasurementById(id,pageable)
     }
-    @GetMapping("/filter/{buildingId}")
+    @GetMapping("/filter")
     fun getBuildingMeasurementsByFilter(
-        @PathVariable buildingId:UUID,
-        @RequestParam(required = false) startDate: MeasurementDate?,
-        @RequestParam(required = false) endDate: MeasurementDate?,
+        @RequestParam buildingId:UUID,
+        @RequestParam(required = false) startDateMonth:Short?,
+        @RequestParam(required = false) startDateYear:Int?,
+        @RequestParam(required = false) endDateMonth:Short?,
+        @RequestParam(required = false) endDateYear:Int?,
         @RequestParam(required = false) types: List<MeasurementType>?,
         @RequestParam(required = false) typeHeaders: List<MeasurementTypeHeader>?,
         @RequestParam(required = false) gasTypes: List<String>?,
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int
     ): Page<BuildingMeasurement>{
-        println("here!\n")
         val pageable = PageRequest.of(page, size)
-        println("here!\n")
-        return buildingMeasurementRepository.getBuildingMeasurementsByFilter(startDate,
+
+        val startDate = MeasurementDate(startDateMonth,startDateYear);
+        val endDate = MeasurementDate(endDateMonth,endDateYear);
+
+        return buildingMeasurementRepository.getBuildingMeasurementsByFilter(buildingId,
+            startDate,
             endDate,
             types,
             typeHeaders,

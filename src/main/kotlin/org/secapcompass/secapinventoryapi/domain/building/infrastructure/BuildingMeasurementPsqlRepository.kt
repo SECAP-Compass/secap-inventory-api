@@ -5,6 +5,7 @@ import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
 import org.secapcompass.secapinventoryapi.domain.building.core.model.BuildingMeasurement
+import org.secapcompass.secapinventoryapi.domain.building.core.model.BuildingType
 import org.secapcompass.secapinventoryapi.domain.building.core.model.MeasurementType
 import org.secapcompass.secapinventoryapi.domain.building.core.model.MeasurementTypeHeader
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingMeasurementRepository
@@ -32,6 +33,7 @@ class BuildingMeasurementPsqlRepository(private val buildingMeasurementJpaReposi
     }
 
     override fun getBuildingMeasurementsByFilter(
+        buildingId: UUID,
         startDate: MeasurementDate?,
         endDate: MeasurementDate?,
         types: List<MeasurementType>?,
@@ -42,7 +44,7 @@ class BuildingMeasurementPsqlRepository(private val buildingMeasurementJpaReposi
         return buildingMeasurementJpaRepository
             .findAll(
                 BuildingMeasurementSpecification
-                    .filterBuildingMeasurement(startDate, endDate, types, typeHeaders, gasTypes), pageable
+                    .filterBuildingMeasurement(buildingId,startDate, endDate, types, typeHeaders, gasTypes), pageable
             )
     }
 
@@ -70,6 +72,7 @@ class BuildingMeasurementSpecification {
     companion object {
 
         fun filterBuildingMeasurement(
+            buildingId: UUID,
             startDate: MeasurementDate?,
             endDate: MeasurementDate?,
             types: List<MeasurementType>?,
@@ -78,6 +81,8 @@ class BuildingMeasurementSpecification {
         ): Specification<BuildingMeasurement> {
             return Specification { root: Root<BuildingMeasurement>, query: CriteriaQuery<*>, criteriaBuilder: CriteriaBuilder ->
                 val predicates = mutableListOf<Predicate>()
+
+                predicates.add(criteriaBuilder.equal(root.get<BuildingMeasurement>("buildingId"), buildingId))
 
                 if (types != null) {
                     if (types.isNotEmpty()) {
@@ -94,6 +99,7 @@ class BuildingMeasurementSpecification {
                     }
                 }
 
+
                 if (typeHeaders != null) {
                     if (typeHeaders.isNotEmpty()) {
                         typeHeaders.forEach {
@@ -109,28 +115,25 @@ class BuildingMeasurementSpecification {
                     }
                 }
 
-                if (startDate != null) {
-                    predicates
-                        .add(
-                            criteriaBuilder.equal(
-                                root
-                                    .get<Measurement>("measurement")
-                                    .get<MeasurementDate>("measurementDate"), startDate
-                            )
+                if (startDate != null && endDate != null){
+                    if (startDate.year != null &&
+                        startDate.month != null &&
+                        endDate.year != null &&
+                        endDate.month != null){
+                        predicates.add(
+                            criteriaBuilder.between(root
+                                .get<Measurement>("measurement")
+                                .get<MeasurementDate>("measurementDate")
+                                .get("year"),startDate.year,endDate.year)
                         )
-                }
-
-                if (endDate != null) {
-                    predicates
-                        .add(
-                            criteriaBuilder.equal(
-                                root
-                                    .get<Measurement>("measurement")
-                                    .get<MeasurementDate>("measurementDate"), endDate
-                            )
+                        predicates.add(
+                            criteriaBuilder.between(root
+                                .get<Measurement>("measurement")
+                                .get<MeasurementDate>("measurementDate")
+                                .get("month"),startDate.month,endDate.month)
                         )
+                    }
                 }
-
                 if (gasTypes != null) {
                     if (gasTypes.isNotEmpty()) {
                         gasTypes.forEach { gasType ->

@@ -19,8 +19,8 @@ data class Measurement(
 }
 
 data class MeasurementDate(
-    val month: Short,
-    val year: Int,
+    val month: Short?,
+    val year: Int?,
 ) {
-    constructor(): this(0, 0)
+    constructor() : this(0,0)
 }

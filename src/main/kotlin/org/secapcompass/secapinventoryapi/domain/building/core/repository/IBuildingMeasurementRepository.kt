@@ -12,7 +12,9 @@ interface IBuildingMeasurementRepository {
 
     fun saveBuildingMeasurement(buildingMeasurement: BuildingMeasurement): BuildingMeasurement
     fun getBuildingMeasurementById(id: UUID, pageable: Pageable): Page<BuildingMeasurement>
-    fun getBuildingMeasurementsByFilter(startDate: MeasurementDate?,
+    fun getBuildingMeasurementsByFilter(
+                                        buildingId: UUID,
+                                        startDate: MeasurementDate?,
                                         endDate: MeasurementDate?,
                                         types:List<MeasurementType>?,
                                         typeHeaders:List<MeasurementTypeHeader>?,
