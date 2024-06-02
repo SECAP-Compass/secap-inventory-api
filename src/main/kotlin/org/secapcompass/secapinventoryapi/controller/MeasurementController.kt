@@ -67,7 +67,7 @@ class MeasurementController(private val buildingMeasurementRepository: IBuilding
             pageable
         )
     }
-    @GetMapping("/filter/city}")
+    @GetMapping("/filter/city")
     fun getCityMeasurementByFilter(
         @RequestParam(required = false) cityId:String,
         @RequestParam(required = false) startDateMonth: Short?,
@@ -81,6 +81,6 @@ class MeasurementController(private val buildingMeasurementRepository: IBuilding
         return reportRepository.getById(cityId).orElseThrow();
     }
 
-    @GetMapping("/filter/{districtId}")
+    @GetMapping("/filter/district")
     fun getDistrictMeasurementByFilter(@PathVariable districtId:UUID) = null
 }
