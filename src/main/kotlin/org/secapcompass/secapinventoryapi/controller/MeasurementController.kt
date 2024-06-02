@@ -3,8 +3,11 @@ package org.secapcompass.secapinventoryapi.controller
 import org.secapcompass.secapinventoryapi.domain.building.core.model.BuildingMeasurement
 import org.secapcompass.secapinventoryapi.domain.building.core.model.MeasurementType
 import org.secapcompass.secapinventoryapi.domain.building.core.model.MeasurementTypeHeader
+import org.secapcompass.secapinventoryapi.domain.building.core.model.Report
 import org.secapcompass.secapinventoryapi.domain.building.core.repository.IBuildingMeasurementRepository
+import org.secapcompass.secapinventoryapi.domain.building.core.repository.IReportRepository
 import org.secapcompass.secapinventoryapi.domain.building.core.vo.MeasurementDate
+import org.secapcompass.secapinventoryapi.domain.building.infrastructure.ReportRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.web.bind.annotation.CrossOrigin
@@ -18,7 +21,9 @@ import java.util.UUID
 @RestController
 @RequestMapping("/measurements")
 @CrossOrigin("*")
-class MeasurementController(private val buildingMeasurementRepository: IBuildingMeasurementRepository) {
+class MeasurementController(private val buildingMeasurementRepository: IBuildingMeasurementRepository,
+    private val reportRepository: IReportRepository
+) {
 
     @GetMapping("/types")
     fun getMeasurementTypes() = MeasurementType.values()
@@ -62,8 +67,19 @@ class MeasurementController(private val buildingMeasurementRepository: IBuilding
             pageable
         )
     }
-    @GetMapping("/filter/{cityId}")
-    fun getCityMeasurementByFilter(@PathVariable cityId:UUID) = null
+    @GetMapping("/filter/city}")
+    fun getCityMeasurementByFilter(
+        @RequestParam(required = false) cityId:String,
+        @RequestParam(required = false) startDateMonth: Short?,
+        @RequestParam(required = false) startDateYear: Int?,
+        @RequestParam(required = false) endDateYear: Int?,
+        @RequestParam(required = false) endDateMonth:Short?,
+    ) : Report {
+        val startDate = MeasurementDate(startDateMonth,startDateYear);
+        val endDate = MeasurementDate(endDateMonth,endDateYear);
+
+        return reportRepository.getById(cityId).orElseThrow();
+    }
 
     @GetMapping("/filter/{districtId}")
     fun getDistrictMeasurementByFilter(@PathVariable districtId:UUID) = null
